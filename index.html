@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستەمی ئەزموونان - Exam Manager</title>
+    
+    <!-- External CSS -->
+    <link rel="stylesheet" href="styles.css">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            if(typeof tailwind !== 'undefined') {
+                tailwind.config = {
+                    theme: {
+                        extend: {
+                            fontFamily: { sans: ['"Noto Kufi Arabic"', 'Tahoma', 'Arial', 'sans-serif'] },
+                            colors: { primary: '#3b82f6', secondary: '#1e293b', accent: '#8b5cf6' }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- SheetJS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        if (typeof XLSX === 'undefined') {
+            document.write('<script src="xlsx.full.min.js"><\/script>');
+        }
+    </script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Fallback for icons -->
+    <script>
+        window.useEmojiIcons = true;
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                if (window.useEmojiIcons) {
+                    applyEmojiIconsFallback();
+                }
+            }, 500);
+        });
+
+        function applyEmojiIconsFallback() {
+            const iconMap = {
+                'fa-graduation-cap': '🎓', 'fa-sliders-h': '🎛️', 'fa-th-large': '📊',
+                'fa-print': '🖨️', 'fa-users': '👥', 'fa-check': '✅', 'fa-layer-group': '📑',
+                'fa-exclamation-triangle': '⚠️', 'fa-file-excel': '📊', 'fa-cloud-upload-alt': '📤',
+                'fa-file-import': '📥', 'fa-cogs': '⚙️', 'fa-project-diagram': '🧮',
+                'fa-magic': '🪄', 'fa-filter': '🔍', 'fa-cog': '⚙️', 'fa-id-card': '🪪',
+                'fa-clipboard-list': '📋', 'fa-copy': '📑', 'fa-info-circle': 'ℹ️',
+                'fa-hand-pointer': '👆', 'fa-spinner': '⏳', 'fa-check-circle': '✅',
+                'fa-exclamation-circle': '❌', 'fa-language': '🌐', 'fa-chevron-right': '➡️',
+                'fa-chevron-left': '⬅️'
+            };
+            document.querySelectorAll('i.fas').forEach(icon => {
+                for (let cls in iconMap) {
+                    if (icon.classList.contains(cls)) {
+                        const span = document.createElement('span');
+                        span.className = icon.className.replace('fas', '').replace(cls, '');
+                        span.style.fontStyle = 'normal';
+                        span.innerHTML = iconMap[cls];
+                        if (icon.id) span.id = icon.id;
+                        icon.parentNode.replaceChild(span, icon);
+                        break;
+                    }
+                }
+            });
+        }
+    </script>
+</head>
+<body class="flex h-screen overflow-hidden text-sm md:text-base relative">
+
+    <!-- Sidebar (Collapsible with fixed-width inner wrapper) -->
+    <aside id="sidebar" class="w-64 bg-secondary flex flex-col shadow-2xl z-20 transition-all duration-300">
+        <div class="w-64 h-full flex flex-col shrink-0">
+            
+            <!-- Language Switcher Bar -->
+            <div class="px-4 pt-4 pb-2 flex justify-between items-center border-b border-gray-700/60 bg-gray-950/20">
+                <span class="text-xs text-gray-400 font-semibold flex items-center gap-1">
+                    <i class="fas fa-language"></i> <span data-translate="langLabel">زمان</span>
+                </span>
+                <div class="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700">
+                    <button onclick="setLanguage('ku')" id="lang-btn-ku" class="px-2 py-1 text-xs rounded-md transition font-bold bg-primary text-white">کوردی</button>
+                    <button onclick="setLanguage('ar')" id="lang-btn-ar" class="px-2 py-1 text-xs rounded-md transition font-bold text-gray-400 hover:text-white">عربي</button>
+                </div>
+            </div>
+
+            <div class="p-6 text-center border-b border-gray-700">
+                <div class="w-16 h-16 mx-auto bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mb-3 shadow-lg">
+                    <i class="fas fa-graduation-cap text-2xl text-white"></i>
+                </div>
+                <h1 id="app-title-header" class="font-bold text-xl text-white" data-translate="title">سیستەمی ئەزموونان</h1>
+                <p id="app-sub-header" class="text-xs text-gray-400 mt-1" data-translate="version">وەشانی ١٠.٠ (بادینی - دژە قۆپی زیرەک)</p>
+            </div>
+            
+            <nav class="flex-1 p-4 space-y-2">
+                <button onclick="switchView('controller')" id="nav-controller" class="nav-btn w-full flex items-center gap-3 p-3 rounded-lg bg-primary text-white transition-colors">
+                    <i class="fas fa-sliders-h w-5"></i> <span data-translate="navController">کۆنترۆل و ڕێکخستن</span>
+                </button>
+                <button onclick="switchView('hall-map')" id="nav-hall-map" class="nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                    <i class="fas fa-th-large w-5"></i> <span data-translate="navMap">نەخشەی کەرتان</span>
+                </button>
+                <button onclick="switchView('search')" id="nav-search" class="nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                    <i class="fas fa-search w-5"></i> <span data-translate="navSearch">گەڕان بۆ قوتابی</span>
+                </button>
+                <button onclick="switchView('print')" id="nav-print" class="nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                    <i class="fas fa-print w-5"></i> <span data-translate="navPrint">چاپکرن (A4)</span>
+                </button>
+                <button onclick="switchView('help')" id="nav-help" class="nav-btn w-full flex items-center gap-3 p-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-colors">
+                    <i class="fas fa-question-circle w-5"></i> <span data-translate="navHelp">ڕێنمایی</span>
+                </button>
+            </nav>
+
+            <div class="p-4 text-center border-t border-gray-700 text-xs text-gray-400" id="sidebar-copyright" data-translate="copyright">
+                پەرەپێدان و مافێن چاپکرنێ <br> © شكري محمد طاهر
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="flex-1 overflow-y-auto relative bg-slate-900">
+        
+        <!-- Premium Floating Toggle Sidebar Button -->
+        <div id="sidebar-toggle-container" class="sticky top-4 right-4 z-30 float-right mr-4 mt-4">
+            <button id="sidebar-toggle-btn" onclick="toggleSidebar()" class="bg-gray-800/90 backdrop-blur-md hover:bg-gray-700/90 border border-gray-700/60 text-gray-300 hover:text-white w-10 h-10 rounded-xl flex items-center justify-center shadow-2xl transition-all duration-300 focus:outline-none" title="نیشاندان / ڤەشارتنا شریتی">
+                <i id="toggle-icon" class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+        
+        <!-- View: Controller -->
+        <div id="view-controller" class="p-6 md:p-10 max-w-6xl mx-auto space-y-6 block">
+            <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-primary to-accent"></div>
+                
+                <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-4">
+                    <h2 class="text-lg font-bold flex items-center gap-2">
+                        <i class="fas fa-sliders-h text-primary"></i> 
+                        <span data-translate="settingsTitle">کۆنترۆل و ڕێکخستن</span>
+                    </h2>
+                    <div class="flex items-center gap-3 text-xs text-gray-400">
+                        <span>📊</span>
+                        <span id="excel-upload-status" data-translate="noFile">چ پەڕگە نەهاتینە هەلبژارتن...</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50 flex items-center gap-3">
+                        <div class="p-2 bg-blue-500/20 text-blue-400 rounded-lg"><i class="fas fa-users text-lg"></i></div>
+                        <div><p class="text-xs text-gray-400" data-translate="statTotal">سەرجەم قوتابیان</p><p id="stat-total" class="font-bold text-lg">٠</p></div>
+                    </div>
+                    <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50 flex items-center gap-3">
+                        <div class="p-2 bg-green-500/20 text-green-400 rounded-lg"><i class="fas fa-check text-lg"></i></div>
+                        <div><p class="text-xs text-gray-400" data-translate="statSeated">دابەشکری</p><p id="stat-seated" class="font-bold text-lg">٠</p></div>
+                    </div>
+                    <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50 flex items-center gap-3">
+                        <div class="p-2 bg-purple-500/20 text-purple-400 rounded-lg"><i class="fas fa-layer-group text-lg"></i></div>
+                        <div><p class="text-xs text-gray-400" data-translate="statSectors">ژمارا کەرتان</p><p id="stat-sectors" class="font-bold text-lg">٠</p></div>
+                    </div>
+                    <div class="bg-gray-900/50 p-3 rounded-lg border border-gray-700/50 flex items-center gap-3">
+                        <div class="p-2 bg-red-500/20 text-red-400 rounded-lg"><i class="fas fa-exclamation-triangle text-lg"></i></div>
+                        <div><p class="text-xs text-gray-400" data-translate="statUnplaced">مایى (کێشە)</p><p id="stat-unplaced" class="font-bold text-lg">٠</p></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                    <div class="lg:col-span-2 bg-gray-900/30 rounded-xl border border-gray-700/50 p-4">
+                        <h3 class="text-sm font-bold mb-3 flex items-center gap-2 text-green-400">
+                            <i class="fas fa-file-excel"></i> <span data-translate="importTitle">پێزانینێن قوتابیان بینە (Excel)</span>
+                        </h3>
+                        
+                        <div class="border-2 border-dashed border-gray-600 rounded-xl p-6 text-center hover:border-primary transition-colors bg-gray-900/50 relative">
+                            <input type="file" id="excel-upload" accept=".xlsx, .xls, .csv, .ods, .xlsm" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="ExcelModule.handleUpload(event)">
+                            <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 mb-2"></i>
+                            <p class="text-gray-300 font-bold text-sm" data-translate="importDropText">پەڕگەی ئێکسل ل ڤێرێ دابنێ یان کرتە بکە</p>
+                            <p class="text-xs text-gray-500 mt-1" data-translate="importFormats">XLSX, XLS, CSV, ODS, XLSM</p>
+                        </div>
+
+                        <div id="excel-sheet-container" class="hidden mt-3 bg-gray-900 border border-gray-600 rounded-lg p-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-sm font-bold text-white"><i class="fas fa-layer-group text-blue-400"></i> <span data-translate="sheetTitle">پەڕەیێن دەرئێخستی:</span></p>
+                                <div class="flex gap-2">
+                                    <button onclick="ExcelModule.toggleAllSheets(true)" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded transition" data-translate="selectAll">هەلبژارتنا هەمییان</button>
+                                    <button onclick="ExcelModule.toggleAllSheets(false)" class="text-xs bg-gray-600 hover:bg-gray-700 text-white px-2 py-1 rounded transition" data-translate="deselectAll">هەلوەشاندنا هەمییان</button>
+                                </div>
+                            </div>
+                            <div id="excel-sheet-checkboxes" class="flex flex-col gap-1 max-h-24 overflow-y-auto mb-2 pr-2 text-sm"></div>
+                            <button id="excel-add-btn" onclick="ExcelModule.processSheets()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-1.5 rounded-lg transition text-sm">
+                                <i class="fas fa-file-import ml-1"></i> <span data-translate="addToDist">زێدەکرن بۆ دابەشکرنێ</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-3 bg-gray-900/30 rounded-xl border border-gray-700/50 p-4">
+                        <h3 class="text-sm font-bold mb-3 flex items-center gap-2 text-gray-300">
+                            <i class="fas fa-cogs"></i> <span data-translate="settingsTitle">ڕێکخستنێن گشتی و دابەشکرن</span>
+                        </h3>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1" data-translate="schoolLabel">ناڤێ قوتابخانێ</label>
+                                <input type="text" id="cfg-school" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white focus:border-primary outline-none" data-translate-placeholder="schoolPlaceholder" placeholder="نموونە: ئامادەییا زانست">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1" data-translate="semesterLabel">وەرزێ خواندنێ</label>
+                                <input type="text" id="cfg-semester" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white focus:border-primary outline-none" data-translate-placeholder="semesterPlaceholder" placeholder="وەرزێ ئێکێ">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1" data-translate="managerLabel">ناڤێ ڕێڤەبەری</label>
+                                <input type="text" id="cfg-manager" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white focus:border-primary outline-none" data-translate-placeholder="managerPlaceholder" placeholder="نموونە: محەمەد عەلی">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3 items-end">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1" data-translate="rowsLabel">ژمارا ڕێزان</label>
+                                <input type="number" id="cfg-cols" min="1" value="3" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1" data-translate="desksLabel">ژمارا ڕەحلان</label>
+                                <input type="number" id="cfg-desks" min="1" value="5" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1" data-translate="seatingLabel">شێوازێ دانیشتنێ</label>
+                                <select id="cfg-mode" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+                                    <option value="single" data-translate="modeSingle">تاک (یەک قوتابی)</option>
+                                    <option value="double" data-translate="modeDouble">جوت (دوو قوتابی)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <button onclick="executeDistribution()" class="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-lg transition-transform transform hover:scale-105">
+                                    <i class="fas fa-magic ml-2"></i> <span data-translate="distBtn">دابەش بکە</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Hall Map -->
+        <div id="view-hall-map" class="hidden p-6 md:p-10 max-w-7xl mx-auto h-full flex-col">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-bold flex items-center gap-2"><i class="fas fa-layer-group text-primary"></i> <span data-translate="mapTitle">نەخشەی کەرتان</span></h2>
+                
+                <div class="flex items-center gap-3">
+                    <label class="text-gray-400 text-sm"><i class="fas fa-filter"></i> <span data-translate="filterLabel">پالاوگێ نیشاندانێ:</span></label>
+                    <select id="map-sector-select" onchange="renderSectors()" class="bg-gray-800 border border-gray-600 text-white rounded p-2 outline-none">
+                        <option value="all" data-translate="filterAll">نیشاندانا هەمییان</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="flex-1 bg-slate-900 overflow-auto relative rounded-xl border border-gray-700 p-4" id="sectors-container">
+                <div class="absolute inset-0 flex items-center justify-center text-gray-500" id="empty-map-msg">
+                    <div class="text-center">
+                        <i class="fas fa-layer-group text-6xl mb-4 opacity-50"></i>
+                        <p data-translate="mapEmpty">هیڤیە دەستپێکێ لیستا قوتابیان زێدە بکە و دابەش بکە.</p>
+                    </div>
+                </div>
+                <div id="sectors-wrapper" class="hidden flex flex-col gap-10 pb-10"></div>
+            </div>
+        </div>
+
+        <!-- View: Search -->
+        <div id="view-search" class="hidden p-6 md:p-10 max-w-5xl mx-auto space-y-6">
+            <div class="flex items-center justify-between mb-6 border-b border-gray-700 pb-4">
+                <h2 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fas fa-search text-primary"></i> 
+                    <span data-translate="searchTitle">گەڕان بۆ قوتابی</span>
+                </h2>
+                <span class="text-xs text-gray-400" data-translate="searchHint">گەڕان بە ناوی یان سەریال</span>
+            </div>
+            
+            <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-2 h-full bg-gradient-to-b from-blue-400 to-purple-400"></div>
+                
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <div class="flex-1 relative">
+                        <input type="text" id="global-search-input" 
+                            placeholder="🔍 ناوی یان سەریالی قوتابی..." 
+                            oninput="performGlobalSearch(this.value)" 
+                            class="w-full bg-gray-900 border border-gray-600 text-white rounded-lg p-3 pl-10 outline-none focus:border-primary text-lg placeholder-gray-500">
+                        <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <label class="text-gray-400 text-sm"><i class="fas fa-filter"></i> <span data-translate="filterLabel">پالاوگێ نیشاندانێ:</span></label>
+                        <select id="search-sector-filter" onchange="performGlobalSearch(document.getElementById('global-search-input').value)" class="bg-gray-900 border border-gray-600 text-white rounded p-2 outline-none">
+                            <option value="all" data-translate="filterAll">نیشاندانا هەمییان</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="search-results-container" class="min-h-[200px]">
+                    <div id="search-empty-msg" class="flex flex-col items-center justify-center py-12 text-gray-500">
+                        <i class="fas fa-search text-5xl mb-4 opacity-30"></i>
+                        <p data-translate="searchEmpty">تکایە ناوی یان سەریالی قوتابی بنووسە بۆ گەڕان.</p>
+                    </div>
+                    <div id="search-results-wrapper" class="hidden space-y-4"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View: Print -->
+        <div id="view-print" class="hidden p-6 md:p-10 max-w-5xl mx-auto space-y-6">
+            <h2 class="text-2xl font-bold flex items-center gap-2 mb-6"><i class="fas fa-print text-primary"></i> <span data-translate="printTitle">چاپکرن و دەرئێخستن</span></h2>
+            
+            <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 mb-6 shadow-lg flex flex-col lg:flex-row items-stretch lg:items-center gap-6">
+                <div class="flex-1 min-w-0">
+                    <label class="block text-xs text-gray-400 mb-1" data-translate="printSelectLabel">کەرتی هەلبژێرە بۆ چاپکرنێ (یان هەمی):</label>
+                    <select id="print-sector-select" class="w-full bg-gray-900 border border-gray-600 rounded p-2 text-white outline-none">
+                        <option value="all" data-translate="filterAll">هەمی کەرت</option>
+                    </select>
+                </div>
+                <div class="flex-1 min-w-0 border-t lg:border-t-0 lg:border-r border-gray-700 pt-4 lg:pt-0 lg:pr-4">
+                    <label class="block text-xs text-gray-400 mb-1 flex justify-between">
+                        <span data-translate="fontSizeLabel">قەبارێ نڤیسینا ناڤان (بۆ کارتان):</span>
+                        <span id="print-font-val" class="text-white font-bold">12px</span>
+                    </label>
+                    <input type="range" id="print-font-size" min="8" max="24" value="12" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary" oninput="document.getElementById('print-font-val').innerText = this.value + 'px'">
+                </div>
+                <div class="flex-1 min-w-0 border-t lg:border-t-0 lg:border-r border-gray-700 pt-4 lg:pt-0 lg:pr-4 flex flex-col justify-center">
+                    <label class="block text-xs text-gray-400 mb-2" data-translate="colorCardsLabel">رەنگکرنا کارتان (ل دەمێ چاپکرنێ):</label>
+                    <div class="flex items-center gap-3">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="print-color-toggle" onchange="toggleColorCards(this)" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                        </label>
+                        <span class="text-xs text-gray-300 font-semibold" data-translate="colorCardsDesc">چالاککرنا ڕەنگێن ئارام و جیاواز بۆ هەر پۆلەکێ</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-lg text-center flex flex-col justify-between">
+                    <div>
+                        <i class="fas fa-id-card text-4xl text-blue-400 mb-4"></i>
+                        <h3 class="text-md font-bold mb-2" data-translate="printCardsTitle">بەتنێ چاپکرنا کارتان</h3>
+                        <p class="text-gray-400 text-xs mb-6" data-translate="printCardsDesc">کارتێن دانیشتنێ بۆ کەرتێن هەلبژارتی (ژ بنى بۆ ژوور).</p>
+                    </div>
+                    <button onclick="printDocument('cards')" class="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold"><i class="fas fa-print ml-1"></i> <span data-translate="printCardsBtn">چاپکرنا کارتان</span></button>
+                </div>
+                <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 shadow-lg text-center flex flex-col justify-between">
+                    <div>
+                        <i class="fas fa-clipboard-list text-4xl text-accent mb-4"></i>
+                        <h3 class="text-md font-bold mb-2" data-translate="printListTitle">تۆمارا ئامادەبوونێ</h3>
+                        <p class="text-gray-400 text-xs mb-6" data-translate="printListDesc">لیستا ناڤێن قوتابیان دگەل ١١ خانەیێن زێدە بۆ تۆمارکرنا ڕۆژانە.</p>
+                    </div>
+                    <button onclick="printDocument('list')" class="w-full bg-accent hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-bold"><i class="fas fa-print ml-1"></i> <span data-translate="printListBtn">چاپکرنا تۆمارێ</span></button>
+                </div>
+                <div class="bg-gray-800 rounded-xl border border-green-700 p-6 shadow-lg text-center flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-2 h-full bg-green-500"></div>
+                    <div>
+                        <i class="fas fa-copy text-4xl text-green-400 mb-4"></i>
+                        <h3 class="text-md font-bold mb-2 text-green-400" data-translate="printCombTitle">چاپکرنا هەڤپێچ (زیرەک)</h3>
+                        <p class="text-gray-400 text-xs mb-6" data-translate="printCombDesc">دێ چاپ کەت: کارتێن کەرتی ١، پاشان لیستا وی، پاشان کارتێن کەرتی ٢، و هتد...</p>
+                    </div>
+                    <button onclick="printDocument('combined')" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold shadow-lg"><i class="fas fa-magic ml-1"></i> <span data-translate="printCombBtn">چاپکرنا هەڤپێچ</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help View (BADINI - SORANI) -->
+        <div id="view-help" class="hidden p-6 md:p-10 max-w-5xl mx-auto space-y-6">
+            <div class="flex items-center justify-between mb-6 border-b border-gray-700 pb-4">
+                <h2 class="text-2xl font-bold flex items-center gap-2">
+                    <i class="fas fa-question-circle text-primary"></i> 
+                    <span data-translate="helpTitle">ڕێنمایی بەکارهێنان</span>
+                </h2>
+                <span class="text-xs text-gray-400" data-translate="helpVersion">وەشانی ڕێنمایی: ١.٠</span>
+            </div>
+            
+            <div id="help-content" class="space-y-8"></div>
+        </div>
+
+    </main>
+
+    <!-- Hidden Print Area -->
+    <div id="print-area" class="hidden text-black bg-white" dir="rtl"></div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 left-5 transform transition-transform duration-300 translate-y-20 opacity-0 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-2xl border-l-4 border-primary z-50 flex items-center gap-3">
+        <span id="toast-icon">ℹ️</span>
+        <span id="toast-msg">پەیام</span>
+    </div>
+
+    <!-- External Scripts -->
+    <script src="locales.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
